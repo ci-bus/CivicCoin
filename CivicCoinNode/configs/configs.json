@@ -1,0 +1,8 @@
+{
+  "mainAddress": "localhost:8080",
+  "keys": {
+    "me": "5030a45d88f11a6b916d2209ffbc552825d3d530b9008bbf42fc690ed82e5118",
+    "main": "miguelio",
+    "nodes": []
+  }
+}
