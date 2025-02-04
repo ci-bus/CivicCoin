@@ -5,42 +5,34 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+	"CivicCoinMain/pkg/models"
 )
 
-type Configs struct {
-	Keys struct {
-		Me    string   `json:"me"`
-		Nodes []string `json:"nodes"`
-	} `json:"keys"`
-	Websocket struct {
-		Address string `json:"address"`
-	} `json:"websocket"`
-}
-
 var (
-	cfg  *Configs
+	cfg  *models.Configs
 	once sync.Once
 )
 
-func LoadConfigs() (*Configs, error) {
+func LoadConfigs() (*models.Configs, error) {
 	var err error
 	once.Do(func() {
 		file, fileErr := os.Open("configs/configs.json")
 		if fileErr != nil {
-			err = fmt.Errorf("Failed to open configuration file: %w", fileErr)
+			err = fmt.Errorf("failed to open configuration file: %w", fileErr)
 			return
 		}
 		defer file.Close()
 
-		cfg = &Configs{}
+		cfg = &models.Configs{}
 		if decodeErr := json.NewDecoder(file).Decode(cfg); decodeErr != nil {
-			err = fmt.Errorf("Could not decode the JSON file: %w", decodeErr)
+			err = fmt.Errorf("could not decode the JSON file: %w", decodeErr)
 		}
 	})
 	return cfg, err
 }
 
 // GetConfig devuelve la configuración cargada
-func GetConfig() *Configs {
+func GetConfig() *models.Configs {
 	return cfg
 }

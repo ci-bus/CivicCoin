@@ -10,7 +10,7 @@ import (
 )
 
 // Create token jwk signed with private key and encripted with public key
-func GenerateJWT(nodeId string, privateKeyPath string) (string, error) {
+func GenerateJWT(nodeId string, addr string, privateKeyPath string) (string, error) {
 
 	// Leer la clave privada desde el archivo PEM
 	privateKey, err := utils.ReadPrivateKey(privateKeyPath)
@@ -20,9 +20,10 @@ func GenerateJWT(nodeId string, privateKeyPath string) (string, error) {
 
 	// Crear el token JWT con claims
 	claims := jwt.MapClaims{
-		"sub": nodeId,                             // Identificador del usuario
-		"exp": time.Now().Add(time.Minute).Unix(), // Fecha de expiración
-		"iat": time.Now().Unix(),                  // Fecha de emisión
+		"sub":  nodeId,                             // Identificador del usuario
+		"addr": addr,                               // Dirección IP del nodo
+		"exp":  time.Now().Add(time.Minute).Unix(), // Fecha de expiración
+		"iat":  time.Now().Unix(),                  // Fecha de emisión
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

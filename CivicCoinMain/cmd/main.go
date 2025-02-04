@@ -70,11 +70,14 @@ import (
 	"time"
 
 	"CivicCoinMain/configs"
+	"CivicCoinMain/pkg/db/redis"
+	"CivicCoinMain/pkg/models"
+	"CivicCoinMain/pkg/nodes"
 	"CivicCoinMain/pkg/server"
 	"CivicCoinMain/pkg/utils"
 )
 
-var cfg *configs.Configs
+var cfg *models.Configs
 var err error
 var stopWebSocketNodes chan bool
 
@@ -85,6 +88,11 @@ func init() {
 		log.Fatalf("Error loading configs: %v", err)
 	}
 	stopWebSocketNodes = make(chan bool)
+	err = redis.Init(cfg.Redis.Addr, cfg.Redis.Pass, cfg.Redis.Db)
+	if err != nil {
+		log.Println("Error init Redis:", err)
+		return
+	}
 }
 
 func main() {
@@ -95,6 +103,7 @@ func main() {
 		fmt.Println("1. Create new keys")
 		fmt.Println("2. Start WebSocket nodes")
 		fmt.Println("3. Stop WebSocket nodes")
+		fmt.Println("4. Connected nodes")
 		fmt.Print("Select option: ")
 
 		choice := readInput()
@@ -109,6 +118,8 @@ func main() {
 			go startWebSocketServerNodes()
 		case 3:
 			stopWebSocketServerNodes()
+		case 4:
+			getConnectedNodes()
 		default:
 			fmt.Println("Invalid option.")
 		}
@@ -168,4 +179,17 @@ func readStringInput() string {
 	reader := bufio.NewReader(os.Stdin)
 	text, _ := reader.ReadString('\n')
 	return strings.TrimSpace(text)
+}
+
+func getConnectedNodes() {
+	// Obtener todos los nodos
+	nodes, err := nodes.GetAllNodes()
+	if err != nil {
+		fmt.Println("Error obteniendo todos los nodos:", err)
+		return
+	}
+	fmt.Println("Todos los nodos:")
+	for _, n := range nodes {
+		fmt.Printf("- %+v\n", n)
+	}
 }

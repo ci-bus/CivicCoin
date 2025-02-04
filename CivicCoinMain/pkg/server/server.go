@@ -4,29 +4,27 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"CivicCoinMain/configs"
 	"CivicCoinMain/pkg/auth"
+	"CivicCoinMain/pkg/models"
+	"CivicCoinMain/pkg/nodes"
 	"CivicCoinMain/pkg/utils"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/websocket"
 )
 
-type NodeClaims struct {
+type Claims struct {
 	Exp int64  `json:"exp"`
 	Iat int64  `json:"iat"`
 	Sub string `json:"sub"`
 	jwt.RegisteredClaims
 }
 
-type NodeConnected struct {
-	Id   string
-	Addr string
-}
-
-var cfg *configs.Configs
-var nodes *[]NodeConnected
+var cfg *models.Configs
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -35,14 +33,10 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func GetNodes() *[]NodeConnected {
-	return nodes
-}
-
 func isValidToken(tokenString string) (bool, string) {
 
 	// Parsear el token sin verificar
-	token, _, err := jwt.NewParser().ParseUnverified(tokenString, &NodeClaims{})
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, &Claims{})
 
 	// Si hubo un error al parsear el token
 	if err != nil {
@@ -50,7 +44,7 @@ func isValidToken(tokenString string) (bool, string) {
 	}
 
 	// Acceder a las claims
-	if claims, ok := token.Claims.(*NodeClaims); ok {
+	if claims, ok := token.Claims.(*Claims); ok {
 		// Imprimir todas las claims
 		log.Printf("exp: %v\n", claims.Exp)
 		log.Printf("iat: %v\n", claims.Iat)
@@ -95,6 +89,8 @@ func isValidToken(tokenString string) (bool, string) {
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Println("Recibiendo petición")
+	// Obtener ip address
+	Addr := r.RemoteAddr
 	// Obtener el token de la URL
 	token := r.URL.Query().Get("token")
 	if token == "" {
@@ -120,7 +116,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	// Devuelve un token nuevo firmado por el nodo principal
-	loggedToken, err := auth.GenerateJWT(Id, "keys/me/"+cfg.Keys.Me+"_private.pem")
+	loggedToken, err := auth.GenerateJWT(Id, Addr, "keys/me/"+cfg.Keys.Me+"_private.pem")
 	if err != nil {
 		log.Println(err)
 		return
@@ -132,6 +128,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Token JWT enviado al nodo secundario:", loggedToken)
+
+	// Save node
+	nodes.SaveNode(models.Node{
+		Id:          Id,
+		Addr:        strings.Split(Addr, ":")[0],
+		Status:      "active",
+		LastUpdated: time.Now().UTC(),
+	})
 
 	// Leer y escribir mensajes en WebSocket
 	for {
@@ -147,15 +151,10 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-
-	// Setup node
-	Addr := r.RemoteAddr
-	*nodes = append(*nodes, NodeConnected{Id, Addr})
 }
 
 // Función que lanza el servidor WebSocket en segundo plano
 func StartWebSocketServerNodes(address string, stop chan bool) {
-	nodes = &[]NodeConnected{}
 	cfg = configs.GetConfig()
 	http.HandleFunc("/", handleWebSocket)
 	log.Println("WebSocket server listening " + address)
